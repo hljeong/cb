@@ -1,4 +1,4 @@
-# cb: command builder
+# menu
 
 todo -- this should come together soon
 
