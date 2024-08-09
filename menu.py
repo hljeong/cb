@@ -115,6 +115,7 @@ def limit(s, max_l, ellipsis=True, extend=False):
 class Columns:
     class Column:
         def __init__(self, default_width=None, min_width=3, ellipsis=True):
+            assert default_width is None or default_width >= min_width
             self.default_width = default_width
             self.min_width = min_width
             self.ellipsis = ellipsis
@@ -140,7 +141,7 @@ class Columns:
             col_width = col.default_width
             # no default_width means adaptive
             if col_width is None:
-                col_width = 0
+                col_width = col.min_width
                 for row in rows:
                     col_width = max(col_width, len(row[idx]))
             widths.append(col_width)
@@ -157,7 +158,7 @@ class Columns:
             # before all other columns are at min width
             sacrificial_idx = sorted(
                 list(range(len(self._cols))),
-                key=lambda idx: (widths[idx] != self._cols[idx].min_width, widths[idx]),
+                key=lambda idx: (widths[idx] >= self._cols[idx].min_width, widths[idx]),
             )[-1]
             widths[sacrificial_idx] -= 1
             total_width -= 1
@@ -189,8 +190,9 @@ def key():
 
 
 class Menu:
-    def __init__(self, entries):
+    def __init__(self, entries, multi=False):
         self._entries = list(entries)
+        self._multi = multi
         self._n = len(self._entries)
         self._constraint = (0, self._n)
         self._save = None
@@ -215,12 +217,16 @@ class Menu:
         cols = Columns()
         # arrow
         cols.column(default_width=2, min_width=2, ellipsis=False)
+        # checkbox
+        if self._multi:
+            cols.column(default_width=4, min_width=4, ellipsis=False)
         # item
         cols.column(min_width=10)
         # rpad
         cols.column(default_width=1, min_width=1, ellipsis=False)
 
         at = 0
+        selection = []
         v = View(min(self._n, t.dims()[1] - 1), self._constraint)
 
         try:
@@ -233,6 +239,8 @@ class Menu:
                     idx = v.s + off
                     row = []
                     row.append("> " if idx == at else "  ")
+                    if self._multi:
+                        row.append("[x] " if entry in selection else "[ ] ")
                     row.append(entry)
                     row.append("")
                     rows.append(row)
@@ -243,7 +251,11 @@ class Menu:
                         w("\n")
 
                     idx = v.s + off
-                    arrow, entry, rpad = row
+                    if self._multi:
+                        arrow, checkbox, entry, rpad = row
+                    else:
+                        arrow, entry, rpad = row
+                        checkbox = "????"
 
                     if idx == at:
                         t.bold()
@@ -251,6 +263,25 @@ class Menu:
                         t.bg("#444444")
                         w(arrow)
                         t.rst()
+
+                        if self._multi:
+                            if len(checkbox) > 0:
+                                t.bold()
+                                t.bg("#444444")
+                                w(checkbox[0])
+                                t.rst()
+
+                            if len(checkbox) > 1:
+                                t.bold()
+                                t.fg("#7acb7f")
+                                t.bg("#444444")
+                                w(checkbox[1])
+                                t.rst()
+
+                            t.bold()
+                            t.bg("#444444")
+                            w(checkbox[2:])
+                            t.rst()
 
                         t.bold()
                         t.bg("#444444")
@@ -260,6 +291,16 @@ class Menu:
 
                     else:
                         w(arrow)
+                        if self._multi:
+                            if len(checkbox) > 0:
+                                w(checkbox[0])
+
+                            if len(checkbox) > 1:
+                                t.fg("#7acb7f")
+                                w(checkbox[1])
+                                t.rst()
+
+                            w(checkbox[2:])
                         w(entry)
                         w(rpad)
 
@@ -281,17 +322,32 @@ class Menu:
                             if at < v.s:
                                 v.anchor_s(at)
 
+                        case " ":
+                            if self._multi:
+                                if self._entries[at] in selection:
+                                    selection = list(
+                                        filter(
+                                            lambda entry: entry != self._entries[at],
+                                            selection,
+                                        )
+                                    )
+                                else:
+                                    selection.append(self._entries[at])
+
                         case "\n":
                             self._teardown(v.n)
-                            return self._entries[at]
+                            if self._multi:
+                                return selection
+                            else:
+                                return self._entries[at]
 
         except KeyboardInterrupt:
             self._teardown(v.n)
             return None
 
 
-def select(entries):
-    return Menu(entries).select()
+def select(entries, multi=False):
+    return Menu(entries, multi=multi).select()
 
 
 def main():
@@ -302,7 +358,7 @@ def main():
         " ".join(["super long"] * 10),
     ] * 5
 
-    print(select(entries))
+    print(select(entries, multi=True))
 
 
 if __name__ == "__main__":
