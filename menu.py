@@ -290,6 +290,10 @@ class Menu:
             return None
 
 
+def select(entries):
+    return Menu(entries).select()
+
+
 def main():
     entries = [
         "hi",
@@ -298,7 +302,7 @@ def main():
         " ".join(["super long"] * 10),
     ] * 5
 
-    print(Menu(entries).select())
+    print(select(entries))
 
 
 if __name__ == "__main__":
