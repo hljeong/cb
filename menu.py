@@ -190,7 +190,7 @@ def key():
 
 class Menu:
     def __init__(self, entries):
-        self._entries = entries
+        self._entries = list(entries)
         self._n = len(self._entries)
         self._constraint = (0, self._n)
         self._save = None
