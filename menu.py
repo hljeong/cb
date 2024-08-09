@@ -127,8 +127,9 @@ class Columns:
         def format(self, s, width):
             return limit(s, width, ellipsis=self.ellipsis, extend=True)
 
-    def __init__(self):
+    def __init__(self, fill=True):
         self._cols = []
+        self._fill = fill
 
     # surely there is a better way...
     def column(self, default_width=None, min_width=3, ellipsis=True):
@@ -167,6 +168,9 @@ class Columns:
             widths[sacrificial_idx] -= 1
             total_width -= 1
 
+        if self._fill:
+            widths[-1] += width - total_width
+
         return widths
 
     def format_rows(self, rows, width):
@@ -194,9 +198,14 @@ def key():
 
 
 class Menu:
-    def __init__(self, entries, multi=False):
+    SINGLE = object()
+    MULTI = object()
+    FLAGS = object()
+    ORDERED = object()
+
+    def __init__(self, entries, mode=SINGLE):
         self._entries = list(entries)
-        self._multi = multi
+        self._mode = mode
         self._n = len(self._entries)
         self._constraint = (0, self._n)
         self._save = None
@@ -222,8 +231,16 @@ class Menu:
         # arrow
         cols.column(default_width=2, min_width=2, ellipsis=False)
         # checkbox
-        if self._multi:
-            cols.column(default_width=4, min_width=4, ellipsis=False)
+        if self._mode is not Menu.SINGLE:
+            if self._mode is Menu.ORDERED:
+                max_idx_width = len(str(len(self._entries)))
+                cols.column(
+                    default_width=3 + max_idx_width,
+                    min_width=3 + max_idx_width,
+                    ellipsis=False,
+                )
+            else:
+                cols.column(default_width=4, min_width=4, ellipsis=False)
         # item
         cols.column(min_width=10)
         # rpad
@@ -237,29 +254,37 @@ class Menu:
             while True:
                 # very nice responsiveness :)
                 # todo: just need to put this on a timer instead of blocked by read()
-                v.resize(min(self._n, t.dims()[1] - 1), anchor=at)
+                t_w, t_h = t.dims()
+                v.resize(min(self._n, t_h - 1), anchor=at)
                 rows = []
-                for off, entry in enumerate(self._entries[v.s : v.e]):
-                    idx = v.s + off
+                for idx, entry in enumerate(self._entries):
                     row = []
                     row.append("> " if idx == at else "  ")
-                    if self._multi:
-                        row.append("[x] " if entry in selection else "[ ] ")
+                    if self._mode is not Menu.SINGLE:
+                        if self._mode is Menu.ORDERED:
+                            max_idx_width = len(str(len(self._entries)))
+                            row.append(
+                                f"[{selection.index(entry) + 1:>{max_idx_width}}] "
+                                if entry in selection
+                                else f"[{' ' * max_idx_width}] "
+                            )
+                        else:
+                            row.append("[x] " if entry in selection else "[ ] ")
                     row.append(entry)
                     row.append("")
                     rows.append(row)
 
-                formatted_rows = cols.format_rows(rows, t.dims()[0])
-                for off, row in enumerate(formatted_rows):
+                formatted_rows = cols.format_rows(rows, t_w)
+                for off, row in enumerate(formatted_rows[v.s : v.e]):
                     if off:
                         w("\n")
 
                     idx = v.s + off
-                    if self._multi:
-                        arrow, checkbox, entry, rpad = row
-                    else:
+                    if self._mode is Menu.SINGLE:
                         arrow, entry, rpad = row
-                        checkbox = "????"
+                        checkbox = ""
+                    else:
+                        arrow, checkbox, entry, rpad = row
 
                     if idx == at:
                         t.bold()
@@ -268,24 +293,46 @@ class Menu:
                         w(arrow)
                         t.rst()
 
-                        if self._multi:
-                            if len(checkbox) > 0:
+                        if self._mode is not Menu.SINGLE:
+                            if self._mode is Menu.ORDERED:
+                                max_idx_width = len(str(len(self._entries)))
+                                if len(checkbox) > 0:
+                                    t.bold()
+                                    t.bg("#444444")
+                                    w(checkbox[0])
+                                    t.rst()
+
+                                if len(checkbox) > 1:
+                                    t.bold()
+                                    t.fg("#7acb7f")
+                                    t.bg("#444444")
+                                    w(checkbox[1 : 1 + max_idx_width])
+                                    t.rst()
+
+                                if len(checkbox) > 1 + max_idx_width:
+                                    t.bold()
+                                    t.bg("#444444")
+                                    w(checkbox[1 + max_idx_width :])
+                                    t.rst()
+
+                            else:
+                                if len(checkbox) > 0:
+                                    t.bold()
+                                    t.bg("#444444")
+                                    w(checkbox[0])
+                                    t.rst()
+
+                                if len(checkbox) > 1:
+                                    t.bold()
+                                    t.fg("#7acb7f")
+                                    t.bg("#444444")
+                                    w(checkbox[1])
+                                    t.rst()
+
                                 t.bold()
                                 t.bg("#444444")
-                                w(checkbox[0])
+                                w(checkbox[2:])
                                 t.rst()
-
-                            if len(checkbox) > 1:
-                                t.bold()
-                                t.fg("#7acb7f")
-                                t.bg("#444444")
-                                w(checkbox[1])
-                                t.rst()
-
-                            t.bold()
-                            t.bg("#444444")
-                            w(checkbox[2:])
-                            t.rst()
 
                         t.bold()
                         t.bg("#444444")
@@ -295,16 +342,31 @@ class Menu:
 
                     else:
                         w(arrow)
-                        if self._multi:
-                            if len(checkbox) > 0:
-                                w(checkbox[0])
+                        if self._mode is not Menu.SINGLE:
+                            if self._mode is Menu.ORDERED:
+                                max_idx_width = len(str(len(self._entries)))
+                                if len(checkbox) > 0:
+                                    w(checkbox[0])
 
-                            if len(checkbox) > 1:
-                                t.fg("#7acb7f")
-                                w(checkbox[1])
-                                t.rst()
+                                if len(checkbox) > 1:
+                                    t.fg("#7acb7f")
+                                    w(checkbox[1 : 1 + max_idx_width])
+                                    t.rst()
 
-                            w(checkbox[2:])
+                                if len(checkbox) > 1 + max_idx_width:
+                                    w(checkbox[1 + max_idx_width :])
+
+                            else:
+                                if len(checkbox) > 0:
+                                    w(checkbox[0])
+
+                                if len(checkbox) > 1:
+                                    t.fg("#7acb7f")
+                                    w(checkbox[1])
+                                    t.rst()
+
+                                w(checkbox[2:])
+
                         w(entry)
                         w(rpad)
 
@@ -327,7 +389,7 @@ class Menu:
                                 v.anchor_s(at)
 
                         case " ":
-                            if self._multi:
+                            if self._mode is not Menu.SINGLE:
                                 if self._entries[at] in selection:
                                     selection = list(
                                         filter(
@@ -340,29 +402,42 @@ class Menu:
 
                         case "\n":
                             self._teardown(v.n)
-                            if self._multi:
-                                return selection
-                            else:
+                            if self._mode is Menu.SINGLE:
                                 return self._entries[at]
+                            elif self._mode is Menu.FLAGS:
+                                d = {
+                                    entry: entry in selection for entry in self._entries
+                                }
+                                return type(
+                                    "Flags",
+                                    (object,),
+                                    {
+                                        **d,
+                                        "__repr__": lambda _: str(
+                                            list(filter(lambda k: d[k], d))
+                                        ),
+                                        "__getitem__": lambda _, k: d[k],
+                                    },
+                                )()
+                            else:
+                                return selection
 
         except KeyboardInterrupt:
             self._teardown(v.n)
             return None
 
 
-def select(entries, multi=False):
-    return Menu(entries, multi=multi).select()
+def select(entries, mode=Menu.SINGLE):
+    return Menu(entries, mode=mode).select()
 
 
 def main():
     entries = [
-        "hi",
-        "mhm",
-        "bye",
-        " ".join(["super long"] * 10),
-    ] * 5
+        c * (30 if idx % 11 == 5 else 1)
+        for idx, c in enumerate("abcdefghijklmnopqrstuvwxyz")
+    ]
 
-    print(select(entries, multi=True))
+    print(select(entries, mode=Menu.ORDERED))
 
 
 if __name__ == "__main__":
