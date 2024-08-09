@@ -112,6 +112,10 @@ def limit(s, max_l, ellipsis=True, extend=False):
     return ret
 
 
+def argmax(xs, f):
+    return max(map(lambda x: (f(x), x), xs))[1]
+
+
 class Columns:
     class Column:
         def __init__(self, default_width=None, min_width=3, ellipsis=True):
@@ -156,10 +160,10 @@ class Columns:
             # decrement width of the the "largest" column by 1
             # this will make sure columns at min width will not be narrowed
             # before all other columns are at min width
-            sacrificial_idx = sorted(
+            sacrificial_idx = argmax(
                 list(range(len(self._cols))),
-                key=lambda idx: (widths[idx] >= self._cols[idx].min_width, widths[idx]),
-            )[-1]
+                lambda idx: (widths[idx] >= self._cols[idx].min_width, widths[idx]),
+            )
             widths[sacrificial_idx] -= 1
             total_width -= 1
 
