@@ -203,9 +203,10 @@ class Menu:
     FLAGS = object()
     ORDERED = object()
 
-    def __init__(self, entries, mode=SINGLE):
+    def __init__(self, entries, mode=SINGLE, prompt=None):
         self._entries = list(entries)
         self._mode = mode
+        self._prompt = prompt
         self._n = len(self._entries)
         self._constraint = (0, self._n)
         self._save = None
@@ -248,18 +249,24 @@ class Menu:
 
         at = 0
         selection = []
-        v = View(min(self._n, t.dims()[1] - 1), self._constraint)
+        v_h = t.dims()[1] - 1
+        if self._prompt is not None:
+            v_h = max(v_h - 1, 0)
+        v = View(min(self._n, v_h), self._constraint)
 
         try:
             while True:
                 # very nice responsiveness :)
                 # todo: just need to put this on a timer instead of blocked by read()
                 t_w, t_h = t.dims()
-                v.resize(min(self._n, t_h - 1), anchor=at)
+                v_h = t_h - 1
+                if self._prompt is not None:
+                    v_h = max(v_h - 1, 0)
+                v.resize(min(self._n, v_h), anchor=at)
                 rows = []
                 for idx, entry in enumerate(self._entries):
                     row = []
-                    row.append("> " if idx == at else "  ")
+                    row.append("\u258c " if idx == at else "  ")
                     if self._mode is not Menu.SINGLE:
                         if self._mode is Menu.ORDERED:
                             max_idx_width = len(str(len(self._entries)))
@@ -273,6 +280,9 @@ class Menu:
                     row.append(entry)
                     row.append("")
                     rows.append(row)
+
+                if self._prompt is not None:
+                    w(f"{self._prompt}\n")
 
                 formatted_rows = cols.format_rows(rows, t_w)
                 for off, row in enumerate(formatted_rows[v.s : v.e]):
@@ -374,6 +384,9 @@ class Menu:
                 for _ in range(v.n - 1):
                     t.cuu1()
 
+                if self._prompt is not None:
+                    t.cuu1()
+
                 sys.stdout.flush()
 
                 for k in key():
@@ -401,7 +414,7 @@ class Menu:
                                     selection.append(self._entries[at])
 
                         case "\n":
-                            self._teardown(v.n)
+                            self._teardown(v.n + (self._prompt is not None))
                             if self._mode is Menu.SINGLE:
                                 return self._entries[at]
                             elif self._mode is Menu.FLAGS:
@@ -423,12 +436,12 @@ class Menu:
                                 return selection
 
         except KeyboardInterrupt:
-            self._teardown(v.n)
+            self._teardown(v.n + (self._prompt is not None))
             return None
 
 
-def select(entries, mode=Menu.SINGLE):
-    return Menu(entries, mode=mode).select()
+def select(entries, mode=Menu.SINGLE, prompt=None):
+    return Menu(entries, mode=mode, prompt=prompt).select()
 
 
 def main():
@@ -437,7 +450,7 @@ def main():
         for idx, c in enumerate("abcdefghijklmnopqrstuvwxyz")
     ]
 
-    print(select(entries, mode=Menu.ORDERED))
+    print(select(entries, mode=Menu.ORDERED, prompt="choose:"))
 
 
 if __name__ == "__main__":
