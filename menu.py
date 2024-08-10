@@ -212,6 +212,10 @@ class Menu:
 
     def __init__(self, entries, mode=SINGLE, prompt=None):
         self._entries = list(entries)
+        if isinstance(entries, dict):
+            self._displayed_entries = [entries[entry] for entry in self._entries]
+        else:
+            self._displayed_entries = list(self._entries)
         self._mode = mode
         self._prompt = prompt
         self._n = len(self._entries)
@@ -271,7 +275,9 @@ class Menu:
                     v_h = max(v_h - 1, 0)
                 v.resize(min(self._n, v_h), anchor=at)
                 rows = []
-                for idx, entry in enumerate(self._entries):
+                for idx, (entry, displayed_entry) in enumerate(
+                    zip(self._entries, self._displayed_entries)
+                ):
                     row = []
                     row.append("\u258c " if idx == at else "  ")
                     if self._mode is not Menu.SINGLE:
@@ -284,7 +290,7 @@ class Menu:
                             )
                         else:
                             row.append("[x] " if entry in selection else "[ ] ")
-                    row.append(entry)
+                    row.append(displayed_entry)
                     row.append("")
                     rows.append(row)
 
@@ -464,8 +470,10 @@ def main():
         c * (30 if idx % 11 == 5 else 1)
         for idx, c in enumerate("abcdefghijklmnopqrstuvwxyz")
     ]
-
     print(select(entries, mode=Menu.ORDERED, prompt="choose:"))
+
+    dict_entries = {entry: f"{entry[0]} * {len(entry)}" for entry in entries}
+    print(select(dict_entries, mode=Menu.MULTI))
 
 
 if __name__ == "__main__":
