@@ -72,6 +72,13 @@ class View:
         self.s = 0
         self.e = self.n
 
+    def anchor(self, anchor):
+        if anchor < self.s:
+            self.anchor_s(anchor)
+
+        elif anchor >= self.e:
+            self.anchor_e(anchor)
+
     def anchor_s(self, anchor):
         self.s = clamp(anchor, self._constraint)
         self.e = self.s + self.n
@@ -393,13 +400,21 @@ class Menu:
                     match k:
                         case "j":
                             at = clamp(at + 1, self._constraint)
-                            if at >= v.e:
-                                v.anchor_e(at)
+                            v.anchor(at)
 
                         case "k":
                             at = clamp(at - 1, self._constraint)
-                            if at < v.s:
-                                v.anchor_s(at)
+                            v.anchor(at)
+
+                        # c-d
+                        case "\x04":
+                            at = clamp(at + (v.n + 1) // 2, self._constraint)
+                            v.anchor(at)
+
+                        # c-u
+                        case "\x15":
+                            at = clamp(at - (v.n + 1) // 2, self._constraint)
+                            v.anchor(at)
 
                         case " ":
                             if self._mode is not Menu.SINGLE:
