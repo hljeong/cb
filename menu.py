@@ -210,9 +210,12 @@ class Menu:
     FLAGS = object()
     ORDERED = object()
 
-    def __init__(self, entries, mode=SINGLE, prompt=None):
+    def __init__(self, entries, mode=SINGLE, prompt=None, use_descriptions=False):
         self._entries = list(entries)
-        if isinstance(entries, dict):
+        if use_descriptions:
+            assert isinstance(
+                entries, dict
+            ), "entries must be a dictionary when using descriptions"
             self._displayed_entries = [entries[entry] for entry in self._entries]
         else:
             self._displayed_entries = list(self._entries)
@@ -461,8 +464,10 @@ class Menu:
             return None
 
 
-def select(entries, mode=Menu.SINGLE, prompt=None):
-    return Menu(entries, mode=mode, prompt=prompt).select()
+def select(entries, mode=Menu.SINGLE, prompt=None, use_descriptions=False):
+    return Menu(
+        entries, mode=mode, prompt=prompt, use_descriptions=use_descriptions
+    ).select()
 
 
 def main():
@@ -473,7 +478,7 @@ def main():
     print(select(entries, mode=Menu.ORDERED, prompt="choose:"))
 
     dict_entries = {entry: f"{entry[0]} * {len(entry)}" for entry in entries}
-    print(select(dict_entries, mode=Menu.MULTI))
+    print(select(dict_entries, mode=Menu.MULTI, use_descriptions=True))
 
 
 if __name__ == "__main__":
