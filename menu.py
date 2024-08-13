@@ -207,7 +207,6 @@ def key():
 class Menu:
     SINGLE = object()
     MULTI = object()
-    FLAGS = object()
     ORDERED = object()
 
     def __init__(self, entries, mode=SINGLE, prompt=None, use_descriptions=False):
@@ -441,21 +440,6 @@ class Menu:
                             self._teardown(v.n + (self._prompt is not None))
                             if self._mode is Menu.SINGLE:
                                 return self._entries[at]
-                            elif self._mode is Menu.FLAGS:
-                                d = {
-                                    entry: entry in selection for entry in self._entries
-                                }
-                                return type(
-                                    "Flags",
-                                    (object,),
-                                    {
-                                        **d,
-                                        "__repr__": lambda _: str(
-                                            list(filter(lambda k: d[k], d))
-                                        ),
-                                        "__getitem__": lambda _, k: d[k],
-                                    },
-                                )()
                             else:
                                 return selection
 
