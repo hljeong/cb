@@ -3,7 +3,10 @@ from termios import ECHO, ICANON, TCSAFLUSH, tcgetattr as tget, tcsetattr as tse
 
 # todo: type annotate this at some point idk
 
-fd = sys.stdin.fileno()
+try:
+    fd = sys.stdin.fileno()
+except:
+    pass
 w = sys.stdout.write
 
 
