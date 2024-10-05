@@ -43,9 +43,14 @@ class Term:
 
     # honestly i still dont know whats going on here
     def __getattr__(self, capname):
-        return Term.Code(
-            subprocess.check_output(["tput", capname], universal_newlines=True)
+        setattr(
+            self,
+            capname,
+            Term.Code(
+                subprocess.check_output(["tput", capname], universal_newlines=True)
+            ),
         )
+        return getattr(self, capname)
 
 
 t = Term()
